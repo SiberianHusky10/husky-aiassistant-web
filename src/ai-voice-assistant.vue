@@ -104,9 +104,12 @@ const error = ref('')
 const chatContainer = ref(null)
 
 let recognition = null
+let audioPlayer = null
 
 // 初始化语音识别
 onMounted(() => {
+  audioPlayer = new Audio()
+
   // 检查浏览器是否支持 Web Speech API
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
 
@@ -121,6 +124,9 @@ onMounted(() => {
       const transcript = event.results[0][0].transcript
       inputText.value = transcript
       isListening.value = false
+
+      // 自动发送语音识别的文本到 /voicechat 接口
+      sendVoiceMessage(transcript)
     }
 
     // 识别错误
@@ -167,6 +173,85 @@ const toggleVoiceRecognition = () => {
   }
 }
 
+const sendVoiceMessage = async (message) => {
+  if (!message || isLoading.value) return
+
+  // 添加用户消息
+  messages.value.push({
+    role: 'user',
+    content: message,
+    timestamp: new Date()
+  })
+
+  inputText.value = ''
+  isLoading.value = true
+  error.value = ''
+
+  // 滚动到底部
+  await nextTick()
+  scrollToBottom()
+
+  try {
+    // 调用语音专用接口 /voicechat
+    const response = await fetch('http://localhost:8000/voicechat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        text: message
+      })
+    })
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+
+    const data = await response.json()
+
+    // 添加AI回复
+    messages.value.push({
+      role: 'assistant',
+      content: data.reply || '抱歉，我没有收到有效的回复',
+      timestamp: new Date()
+    })
+
+    await nextTick()
+    scrollToBottom()
+
+    if (data.audio_url) {
+      audioPlayer.src = data.audio_url
+      await audioPlayer.play()
+
+      audioPlayer.onended = () => {
+      }
+
+      audioPlayer.onerror = (err) => {
+        console.error('音频播放失败:', err)
+        error.value = '音频播放失败'
+        setTimeout(() => {
+          error.value = ''
+        }, 3000)
+      }
+    }
+
+  } catch (err) {
+    console.error('发送语音消息错误:', err)
+    error.value = '语音消息发送失败，请检查网络连接或后端服务'
+
+    // 添加错误消息
+    messages.value.push({
+      role: 'assistant',
+      content: '抱歉，我遇到了一些问题，请稍后再试。',
+      timestamp: new Date()
+    })
+  } finally {
+    isLoading.value = false
+    await nextTick()
+    scrollToBottom()
+  }
+}
+
 // 发送消息
 const sendMessage = async () => {
   const message = inputText.value.trim()
@@ -209,7 +294,7 @@ const sendMessage = async () => {
     // 添加AI回复
     messages.value.push({
       role: 'assistant',
-      content: data.reply|| '抱歉，我没有收到有效的回复',
+      content: data.reply || '抱歉，我没有收到有效的回复',
       timestamp: new Date()
     })
 
