@@ -1,11 +1,11 @@
 <template>
-  <div v-if="!showNewPage" class="flex flex-col h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+  <div class="flex flex-col h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
     <!-- 头部 -->
     <header class="bg-white shadow-sm px-6 py-4 flex justify-between items-center">
       <h1 class="text-2xl font-bold text-indigo-600">AI 语音助手</h1>
       <!-- 添加右上角按钮 -->
       <button
-          @click="showNewPage = true"
+          @click="router.push('/voice')"
           class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors flex items-center space-x-2"
       >
         <Settings class="w-5 h-5" />
@@ -99,45 +99,15 @@
     </div>
   </div>
 
-  <!-- 添加新页面 -->
-  <div v-else class="flex flex-col h-screen bg-gradient-to-br from-purple-50 to-pink-100">
-    <!-- 新页面头部 -->
-    <header class="bg-white shadow-sm px-6 py-4">
-      <h1 class="text-2xl font-bold text-purple-600">设置页面</h1>
-    </header>
-
-    <!-- 新页面内容区域 -->
-    <div class="flex-1 overflow-y-auto px-6 py-8">
-      <div class="max-w-2xl mx-auto space-y-6">
-        <div class="bg-white rounded-lg shadow-md p-6">
-          <h2 class="text-xl font-semibold text-gray-800 mb-4">基本设置</h2>
-          <p class="text-gray-600">这是一个新的页面，您可以在这里添加更多功能。</p>
-        </div>
-
-        <div class="bg-white rounded-lg shadow-md p-6">
-          <h2 class="text-xl font-semibold text-gray-800 mb-4">关于</h2>
-          <p class="text-gray-600">AI 语音助手 v1.0</p>
-        </div>
-      </div>
-    </div>
-
-    <!-- 新页面底部退出按钮 -->
-    <div class="bg-white border-t border-gray-200 px-6 py-4">
-      <div class="max-w-2xl mx-auto">
-        <button
-            @click="showNewPage = false"
-            class="w-full py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-lg transition-all font-medium shadow-md hover:shadow-lg"
-        >
-          退出
-        </button>
-      </div>
-    </div>
-  </div>
 </template>
 
 <script setup>
 import {ref, onMounted, nextTick} from 'vue'
 import {Mic, Send, Settings} from 'lucide-vue-next'
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
+
 
 const messages = ref([])
 const inputText = ref('')
@@ -145,7 +115,6 @@ const isLoading = ref(false)
 const isListening = ref(false)
 const error = ref('')
 const chatContainer = ref(null)
-const showNewPage = ref(false) // 添加页面切换状态
 
 let recognition = null
 let audioPlayer = null

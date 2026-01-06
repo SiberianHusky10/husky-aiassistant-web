@@ -2,9 +2,11 @@ import './assets/main.css'
 
 import { createApp } from 'vue'
 import "./assets/style.css"
-import App from './ai-voice-assistant.vue'
+import App from './App.vue'
+import router from './router'
 
-
-createApp(App).mount('#app')
+createApp(App)
+    .use(router)
+    .mount('#app')
 
 
