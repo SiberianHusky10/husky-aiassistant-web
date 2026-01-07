@@ -12,12 +12,14 @@
     <main class="main-content">
       <div class="voice-visualizer">
         <!-- 外层波纹圆环 -->
-        <div class="pulse-ring pulse-ring-1"></div>
-        <div class="pulse-ring pulse-ring-2"></div>
-        <div class="pulse-ring pulse-ring-3"></div>
+        <!-- 根据状态动态调整波纹速度和颜色 -->
+        <div :class="['pulse-ring', 'pulse-ring-1', pulseClass]"></div>
+        <div :class="['pulse-ring', 'pulse-ring-2', pulseClass]"></div>
+        <div :class="['pulse-ring', 'pulse-ring-3', pulseClass]"></div>
 
         <!-- 中心圆 -->
-        <div class="center-circle">
+        <!-- 根据不同状态改变中心圆的颜色 -->
+        <div :class="['center-circle', circleClass]">
           <div class="inner-glow"></div>
           <svg class="mic-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
@@ -31,6 +33,11 @@
       <!-- 状态文字 -->
       <div class="status-text">
         {{ statusText }}
+      </div>
+
+      <!-- 添加连接状态提示 -->
+      <div v-if="!connected" class="connection-status">
+        {{ connecting ? '正在连接到服务器...' : '连接已断开' }}
       </div>
     </main>
 
@@ -49,32 +56,128 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
-
-const statusText = ref('正在聆听...')
-let animationFrame
-
-// 模拟状态变化
-const statusMessages = ['正在聆听...', '正在思考...', '正在回答...']
-let currentIndex = 0
-
-onMounted(() => {
-  // 可以添加状态切换逻辑
-  const interval = setInterval(() => {
-    currentIndex = (currentIndex + 1) % statusMessages.length
-    statusText.value = statusMessages[currentIndex]
-  }, 3000)
-
-  onUnmounted(() => {
-    clearInterval(interval)
-  })
-})
-
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
 
+const statusText = ref('正在连接...')
+const currentState = ref('idle')
+const ws = ref(null)
+const connected = ref(false)
+const connecting = ref(true)
+
+const circleClass = computed(() => {
+  switch (currentState.value) {
+    case 'listening':
+      return 'state-listening'
+    case 'thinking':
+      return 'state-thinking'
+    case 'speaking':
+      return 'state-speaking'
+    default:
+      return 'state-idle'
+  }
+})
+
+const pulseClass = computed(() => {
+  switch (currentState.value) {
+    case 'listening':
+      return 'pulse-fast'
+    case 'thinking':
+      return 'pulse-medium'
+    case 'speaking':
+      return 'pulse-slow'
+    default:
+      return ''
+  }
+})
+
+const updateStatusText = (state) => {
+  switch (state) {
+    case 'idle':
+      statusText.value = '待机中，请说唤醒词...'
+      break
+    case 'listening':
+      statusText.value = '正在聆听...'
+      break
+    case 'thinking':
+      statusText.value = '正在思考...'
+      break
+    case 'speaking':
+      statusText.value = '正在回答...'
+      break
+    default:
+      statusText.value = '未知状态'
+  }
+}
+
+const connectWebSocket = () => {
+  console.log('[v0] Connecting to WebSocket...')
+  connecting.value = true
+
+  // 连接到后端 /voice WebSocket 端点
+  ws.value = new WebSocket('ws://localhost:8000/voice')
+
+  ws.value.onopen = () => {
+    console.log('[v0] WebSocket connected')
+    connected.value = true
+    connecting.value = false
+    currentState.value = 'idle'
+    updateStatusText('idle')
+  }
+
+  ws.value.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data)
+      console.log('[v0] Received state:', data.state)
+
+      // 更新状态
+      currentState.value = data.state
+      updateStatusText(data.state)
+    } catch (error) {
+      console.error('[v0] Failed to parse message:', error)
+    }
+  }
+
+  ws.value.onerror = (error) => {
+    console.error('[v0] WebSocket error:', error)
+    connected.value = false
+    connecting.value = false
+  }
+
+  ws.value.onclose = () => {
+    console.log('[v0] WebSocket disconnected')
+    connected.value = false
+    connecting.value = false
+    statusText.value = '连接已断开'
+
+    // 5秒后自动重连
+    setTimeout(() => {
+      if (!connected.value) {
+        console.log('[v0] Attempting to reconnect...')
+        connectWebSocket()
+      }
+    }, 5000)
+  }
+}
+
+onMounted(() => {
+  connectWebSocket()
+})
+
+onUnmounted(() => {
+  if (ws.value) {
+    console.log('[v0] Closing WebSocket connection')
+    ws.value.close()
+  }
+})
+
 const handleExit = () => {
+  // 关闭 WebSocket 连接
+  if (ws.value) {
+    ws.value.close()
+  }
   router.push('/')
 }
 </script>
@@ -141,6 +244,19 @@ const handleExit = () => {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
+/* 添加不同速度的脉冲动画 */
+.pulse-ring.pulse-fast {
+  animation-duration: 1s;
+}
+
+.pulse-ring.pulse-medium {
+  animation-duration: 1.5s;
+}
+
+.pulse-ring.pulse-slow {
+  animation-duration: 2.5s;
+}
+
 .pulse-ring-1 {
   width: 100%;
   height: 100%;
@@ -176,15 +292,32 @@ const handleExit = () => {
   width: 160px;
   height: 160px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 0 60px rgba(59, 130, 246, 0.6),
-  0 0 100px rgba(139, 92, 246, 0.4);
-  animation: glow 2s ease-in-out infinite alternate;
   cursor: pointer;
-  transition: transform 0.3s ease;
+  transition: all 0.5s ease;
+}
+
+/* 添加不同状态的中心圆颜色 */
+.center-circle.state-idle {
+  background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+  box-shadow: 0 0 60px rgba(59, 130, 246, 0.6), 0 0 100px rgba(139, 92, 246, 0.4);
+}
+
+.center-circle.state-listening {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  box-shadow: 0 0 60px rgba(239, 68, 68, 0.8), 0 0 100px rgba(220, 38, 38, 0.5);
+}
+
+.center-circle.state-thinking {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  box-shadow: 0 0 60px rgba(245, 158, 11, 0.8), 0 0 100px rgba(217, 119, 6, 0.5);
+}
+
+.center-circle.state-speaking {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  box-shadow: 0 0 60px rgba(16, 185, 129, 0.8), 0 0 100px rgba(5, 150, 105, 0.5);
 }
 
 .center-circle:hover {
@@ -198,17 +331,6 @@ const handleExit = () => {
   border-radius: 50%;
   background: radial-gradient(circle, rgba(255, 255, 255, 0.3) 0%, transparent 70%);
   animation: innerPulse 2s ease-in-out infinite;
-}
-
-@keyframes glow {
-  from {
-    box-shadow: 0 0 40px rgba(59, 130, 246, 0.5),
-    0 0 80px rgba(139, 92, 246, 0.3);
-  }
-  to {
-    box-shadow: 0 0 80px rgba(59, 130, 246, 0.8),
-    0 0 120px rgba(139, 92, 246, 0.5);
-  }
 }
 
 @keyframes innerPulse {
@@ -237,6 +359,17 @@ const handleExit = () => {
   font-weight: 500;
   color: rgba(255, 255, 255, 0.9);
   animation: fadeInOut 2s ease-in-out infinite;
+}
+
+/* 添加连接状态提示样式 */
+.connection-status {
+  margin-top: 1rem;
+  padding: 0.5rem 1rem;
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  border-radius: 8px;
+  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.9);
 }
 
 @keyframes fadeInOut {
