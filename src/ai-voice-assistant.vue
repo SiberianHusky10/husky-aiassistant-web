@@ -60,7 +60,7 @@
             :disabled="isLoading || isListening"
             type="text"
             placeholder="输入消息或点击麦克风..."
-            class="flex-1 px-4 py-3 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed"
+            class="flex-1 px-4 py-3 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed text-black placeholder-gray-400"
         />
 
         <!-- 麦克风按钮 -->

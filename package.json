@@ -19,7 +19,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.18",
     "@vitejs/plugin-vue": "^6.0.2",
-    "autoprefixer": "^10.4.23",
+    "autoprefixer": "^10.4.24",
     "postcss": "8.5",
     "tailwindcss": "^4.1.18",
     "tw-animate-css": "^1.3.3",
