@@ -184,16 +184,27 @@ const handleExit = () => {
 
 <style scoped>
 .voice-assistant {
-  min-height: 100vh;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100vw;
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
   background: linear-gradient(135deg, #0a0e27 0%, #1a1d3a 100%);
   display: flex;
   flex-direction: column;
   color: white;
   font-family: system-ui, -apple-system, sans-serif;
+  z-index: 9999;
 }
 
 /* 顶部导航 */
 .header {
+  flex-shrink: 0;
   padding: 1.5rem 2rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
@@ -218,12 +229,14 @@ const handleExit = () => {
 /* 中间内容区 */
 .main-content {
   flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 2rem;
   gap: 3rem;
+  overflow: auto;
 }
 
 /* 语音可视化器 */
@@ -392,6 +405,7 @@ const handleExit = () => {
 
 /* 底部 */
 .footer {
+  flex-shrink: 0;
   padding: 2rem;
   display: flex;
   justify-content: center;
